@@ -1,16 +1,21 @@
+using ClipShare.Core.Entities;
 using ClipShare.DataAccess.Data;
 using ClipShare.Extensions;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
-builder.AddApplicationServices();
+builder.AddApplicationServices();               // Add application services to the container.
+builder.AddAuthenticationServices();            // Add authentication services to the container.
 
 var app = builder.Build();
 
@@ -25,6 +30,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();            // Enable authentication middleware to process authentication for incoming requests.
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -34,10 +40,10 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-InitializeContext();
+await InitializeContextAsync();
 app.Run();
 
-void InitializeContext()
+async Task InitializeContextAsync()
 {
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
@@ -45,7 +51,11 @@ void InitializeContext()
     try 
     {
         var context = scope.ServiceProvider.GetService<Context>();
-        ContextInitializer.Initialize(context);
+        var userManager = scope.ServiceProvider.GetService<UserManager<AppUser>>();
+        var roleManager = scope.ServiceProvider.GetService<RoleManager<AppRole>>();
+        // var photoService = scope.ServiceProvider.GetService<IPhotoService>();
+        // var webHostEnvironemt = scope.ServiceProvider.GetService<IWebHostEnvironment>();
+        await ContextInitializer.InitializeAsync(context, userManager, roleManager);
     }
     catch (Exception ex)
     {
